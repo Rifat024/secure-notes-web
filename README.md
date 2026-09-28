@@ -23,4 +23,16 @@ npm run dev             # http://localhost:5173
 
 ## Deploy
 
-Deploy to Vercel with `VITE_API_URL` set to the live API URL. `vercel.json` rewrites every path to `index.html`.
+```bash
+npm run deploy -- https://secure-notes-api-ebon.vercel.app   # or set VITE_API_URL in .env.production
+```
+
+[`scripts/deploy.sh`](scripts/deploy.sh) runs these steps:
+
+1. Checks the API's health endpoint.
+2. Sets `VITE_API_URL` on the Vercel project.
+3. Runs a local build.
+4. Deploys to production.
+5. Confirms the live site returns 200.
+
+`vercel.json` rewrites every path to `index.html`. The API's `CORS_ORIGIN` must include the frontend URL.
