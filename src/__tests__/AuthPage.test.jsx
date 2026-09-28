@@ -5,7 +5,15 @@ import userEvent from '@testing-library/user-event';
 vi.mock('../api.js', () => ({ api: vi.fn() }));
 
 const { api } = await import('../api.js');
-const { AuthPage } = await import('../pages/AuthPage.jsx');
+const { AuthPage: Page } = await import('../pages/AuthPage.jsx');
+const { AppearanceProvider } = await import('../appearance.jsx');
+const { ApiError } = await vi.importActual('../api.js');
+
+const AuthPage = (props) => (
+  <AppearanceProvider>
+    <Page {...props} />
+  </AppearanceProvider>
+);
 
 describe('AuthPage', () => {
   test('logs in with email and password', async () => {
@@ -37,6 +45,33 @@ describe('AuthPage', () => {
       method: 'POST',
       body: { name: 'Ada', email: 'ada@example.com', password: 'Password123', interests: ['Chess', 'reading'] },
     });
+  });
+
+  test('keeps register disabled until the password meets the policy', async () => {
+    render(<AuthPage onAuth={() => {}} />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Create account' }));
+    const password = screen.getByPlaceholderText('At least 8 characters');
+    await userEvent.type(password, 'letters');
+    expect(screen.getByRole('button', { name: 'Create account' })).toBeDisabled();
+    expect(screen.getByText(/A number/)).not.toHaveClass('met');
+    await userEvent.type(password, '123');
+    expect(screen.getByText(/A number/)).toHaveClass('met');
+    expect(screen.getByRole('button', { name: 'Create account' })).toBeEnabled();
+  });
+
+  test('shows a countdown and disables sign-in while locked out', async () => {
+    api.mockRejectedValue(new ApiError('Too many failed sign-in attempts. Please try again later.', 429, 900));
+    render(<AuthPage onAuth={() => {}} />);
+    await userEvent.type(screen.getByPlaceholderText('you@example.com'), 'ada@example.com');
+    await userEvent.type(screen.getByPlaceholderText('At least 8 characters'), 'wrong-password1');
+    await userEvent.click(screen.getByRole('button', { name: 'Log in' }));
+    expect(await screen.findByText(/You can try again in 15 min/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Locked/ })).toBeDisabled();
+  });
+
+  test('shows why the user was signed out', () => {
+    render(<AuthPage onAuth={() => {}} notice="You were signed out after 30 minutes of inactivity." />);
+    expect(screen.getByText('You were signed out after 30 minutes of inactivity.')).toBeInTheDocument();
   });
 
   test('shows the server error on failure', async () => {

@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
-import { api, tokenStore } from './api.js';
+import { useCallback, useEffect, useState } from 'react';
+import { api, tokenStore, SESSION_EXPIRED_EVENT } from './api.js';
+import { ModeToggle } from './appearance.jsx';
+import { useSessionGuard } from './session.js';
 import { Avatar, RoleBadge } from './ui.jsx';
 import { AuthPage } from './pages/AuthPage.jsx';
 import { NotesPage } from './pages/NotesPage.jsx';
@@ -22,10 +24,25 @@ const ADMIN = [
   { name: 'adminNotes', label: 'All notes', icon: '▤' },
 ];
 
+const SIGN_OUT_NOTICES = {
+  idle: 'You were signed out after 30 minutes of inactivity.',
+  expired: 'Your session expired. Please sign in again.',
+  revoked: 'Your session ended. Please sign in again.',
+};
+
 export function App() {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(() => tokenStore.get());
   const [loading, setLoading] = useState(Boolean(tokenStore.get()));
   const [view, setView] = useState({ name: 'notes' });
+  const [notice, setNotice] = useState('');
+
+  const endSession = useCallback((reason) => {
+    tokenStore.clear();
+    setToken(null);
+    setUser(null);
+    setNotice(SIGN_OUT_NOTICES[reason] ?? '');
+  }, []);
 
   useEffect(() => {
     if (!tokenStore.get()) return;
@@ -35,15 +52,34 @@ export function App() {
       .finally(() => setLoading(false));
   }, []);
 
-  const onAuth = ({ token, user: authed }) => {
-    tokenStore.set(token);
+  useEffect(() => {
+    const onExpired = () => endSession('revoked');
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+  }, [endSession]);
+
+  const { secondsLeft, stayActive } = useSessionGuard({ token: user ? token : null, onExpire: endSession });
+
+  const onAuth = ({ token: issued, user: authed }) => {
+    tokenStore.set(issued);
+    setToken(issued);
     setUser(authed);
+    setNotice('');
     setView({ name: 'notes' });
   };
 
-  const logout = () => {
-    tokenStore.clear();
-    setUser(null);
+  const onTokenRefreshed = (issued) => {
+    tokenStore.set(issued);
+    setToken(issued);
+  };
+
+  const logout = async () => {
+    try {
+      await api('/auth/logout', { method: 'POST' });
+    } catch {
+      // The local session is cleared regardless; the server token expires on its own.
+    }
+    endSession();
   };
 
   if (loading) {
@@ -53,7 +89,7 @@ export function App() {
       </div>
     );
   }
-  if (!user) return <AuthPage onAuth={onAuth} />;
+  if (!user) return <AuthPage onAuth={onAuth} notice={notice} />;
 
   const isAdmin = user.role === 'admin';
   const openUserPosts = (id) => setView({ name: 'userPosts', id });
@@ -87,15 +123,18 @@ export function App() {
             </>
           )}
         </nav>
-        <div className="user-chip">
-          <Avatar name={user.name} seed={user._id} />
-          <div className="user-chip-info">
-            <div className="user-chip-name">{user.name}</div>
-            <RoleBadge role={user.role} />
+        <div className="sidebar-footer">
+          <ModeToggle compact />
+          <div className="user-chip">
+            <Avatar name={user.name} seed={user._id} />
+            <div className="user-chip-info">
+              <div className="user-chip-name">{user.name}</div>
+              <RoleBadge role={user.role} />
+            </div>
+            <button className="btn btn-ghost btn-sm" onClick={logout} title="Log out">
+              ⎋
+            </button>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={logout} title="Log out">
-            ⎋
-          </button>
         </div>
       </aside>
 
@@ -104,10 +143,21 @@ export function App() {
         {view.name === 'posts' && <PostsPage currentUser={user} onOpenUser={openUserPosts} />}
         {view.name === 'userPosts' && <UserPostsPage key={view.id} userId={view.id} onBack={() => setView({ name: 'posts' })} />}
         {view.name === 'interests' && <InterestsPage onOpenUser={openUserPosts} />}
-        {view.name === 'profile' && <ProfilePage user={user} onUpdated={setUser} />}
+        {view.name === 'profile' && <ProfilePage user={user} onUpdated={setUser} onTokenRefreshed={onTokenRefreshed} onSignOutEverywhere={logout} />}
         {view.name === 'adminUsers' && isAdmin && <AdminUsersPage currentUser={user} onOpenUser={openUserPosts} />}
         {view.name === 'adminNotes' && isAdmin && <AdminNotesPage />}
       </main>
+
+      {secondsLeft !== null && (
+        <div className="session-banner" role="alertdialog" aria-live="assertive">
+          <span>
+            You'll be signed out in <b>{secondsLeft}s</b> due to inactivity.
+          </span>
+          <button className="btn btn-primary btn-sm" onClick={stayActive}>
+            Stay signed in
+          </button>
+        </div>
+      )}
     </div>
   );
 }

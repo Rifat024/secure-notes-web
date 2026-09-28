@@ -1,8 +1,13 @@
 import { describe, expect, test, vi, beforeEach } from 'vitest';
-import { api, tokenStore } from '../api.js';
+import { api, tokenStore, tokenSecondsLeft, ApiError, SESSION_EXPIRED_EVENT } from '../api.js';
 
-const respond = (status, body) =>
-  vi.fn().mockResolvedValue({ ok: status >= 200 && status < 300, status, json: async () => body });
+const respond = (status, body, headers = {}) =>
+  vi.fn().mockResolvedValue({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+    headers: { get: (name) => headers[name] ?? null },
+  });
 
 describe('api client', () => {
   beforeEach(() => {
@@ -44,10 +49,38 @@ describe('api client', () => {
     await expect(api('/auth/register', { method: 'POST', body: {} })).rejects.toThrow('Validation failed (password: Too short)');
   });
 
-  test('clears the stored token on 401', async () => {
+  test('clears the stored token on 401 and announces the expired session', async () => {
     tokenStore.set('expired');
+    const listener = vi.fn();
+    window.addEventListener(SESSION_EXPIRED_EVENT, listener);
     globalThis.fetch = respond(401, { error: 'Invalid or expired token' });
     await expect(api('/notes')).rejects.toThrow('Invalid or expired token');
     expect(tokenStore.get()).toBeNull();
+    expect(listener).toHaveBeenCalledOnce();
+    window.removeEventListener(SESSION_EXPIRED_EVENT, listener);
+  });
+
+  test('exposes status and Retry-After on rate-limit errors', async () => {
+    globalThis.fetch = respond(429, { error: 'Too many failed sign-in attempts.' }, { 'Retry-After': '120' });
+    const err = await api('/auth/login', { method: 'POST', body: {} }).catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(429);
+    expect(err.retryAfter).toBe(120);
+  });
+
+  test('never sends cookies or a referrer', async () => {
+    await api('/notes');
+    expect(fetch.mock.calls[0][1]).toMatchObject({ credentials: 'omit', referrerPolicy: 'no-referrer' });
+  });
+
+  test('reports network failures clearly', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    await expect(api('/notes')).rejects.toThrow('Network error, please check your connection');
+  });
+
+  test('tokenSecondsLeft reads the JWT expiry', () => {
+    const payload = btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 600 }));
+    expect(tokenSecondsLeft(`h.${payload}.s`)).toBeGreaterThan(590);
+    expect(tokenSecondsLeft('garbage')).toBeNull();
   });
 });
