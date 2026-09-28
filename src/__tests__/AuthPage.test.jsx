@@ -67,6 +67,10 @@ describe('AuthPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Log in' }));
     expect(await screen.findByText(/You can try again in 15 min/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Locked/ })).toBeDisabled();
+
+    await userEvent.type(screen.getByPlaceholderText('you@example.com'), 'x');
+    expect(screen.getByRole('button', { name: 'Log in' })).toBeEnabled();
+    expect(screen.queryByText(/You can try again/)).not.toBeInTheDocument();
   });
 
   test('shows why the user was signed out', () => {

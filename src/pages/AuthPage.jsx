@@ -25,7 +25,14 @@ export function AuthPage({ onAuth, notice }) {
 
   const weakPassword = mode === 'register' && !meetsPasswordPolicy(form.password);
 
-  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+  const set = (key) => (e) => {
+    setForm({ ...form, [key]: e.target.value });
+    // Account lockouts are per email; an IP block is re-applied by the server on the next attempt.
+    if (key === 'email' && lockedFor > 0) {
+      setLockedFor(0);
+      setError('');
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
