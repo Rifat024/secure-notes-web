@@ -1,8 +1,8 @@
 import { describe, expect, test, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Avatar, Pager, RoleBadge, Alert, timeAgo } from '../ui.jsx';
-import { splitList } from '../pages/AuthPage.jsx';
+import { Avatar, Pager, RoleBadge, Alert, timeAgo } from '../src/ui';
+import { splitList } from '../src/pages/AuthPage';
 
 describe('Avatar', () => {
   test('shows up to two initials', () => {
@@ -13,7 +13,7 @@ describe('Avatar', () => {
   test('uses a stable colour for the same seed', () => {
     const { container: a } = render(<Avatar name="X" seed="user-1" />);
     const { container: b } = render(<Avatar name="Y" seed="user-1" />);
-    expect(a.firstChild.style.background).toBe(b.firstChild.style.background);
+    expect((a.firstChild as HTMLElement).style.background).toBe((b.firstChild as HTMLElement).style.background);
   });
 });
 

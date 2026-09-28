@@ -1,41 +1,55 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 
 const STORAGE_KEY = 'secure-notes-appearance';
 
-export const MODES = [
+export type Mode = 'light' | 'system' | 'dark';
+export type Accent = 'violet' | 'ocean' | 'emerald' | 'sunset';
+
+export const MODES: readonly { value: Mode; label: string; icon: string }[] = [
   { value: 'light', label: 'Light', icon: '☀' },
   { value: 'system', label: 'System', icon: '◐' },
   { value: 'dark', label: 'Dark', icon: '☾' },
 ];
 
-export const ACCENTS = [
+export const ACCENTS: readonly { value: Accent; label: string; colors: readonly [string, string] }[] = [
   { value: 'violet', label: 'Violet', colors: ['#7c5cff', '#22d3ee'] },
   { value: 'ocean', label: 'Ocean', colors: ['#3b82f6', '#2dd4bf'] },
   { value: 'emerald', label: 'Emerald', colors: ['#10b981', '#a3e635'] },
   { value: 'sunset', label: 'Sunset', colors: ['#f97316', '#ec4899'] },
 ];
 
-const DEFAULTS = { mode: 'system', accent: 'violet' };
+interface Prefs {
+  mode: Mode;
+  accent: Accent;
+}
 
-function readPrefs() {
+interface AppearanceValue extends Prefs {
+  setMode: (mode: Mode) => void;
+  setAccent: (accent: Accent) => void;
+}
+
+const DEFAULTS: Prefs = { mode: 'system', accent: 'violet' };
+
+function readPrefs(): Prefs {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') };
+    return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Partial<Prefs>) };
   } catch {
     return DEFAULTS;
   }
 }
 
-function applyPrefs({ mode, accent }) {
+function applyPrefs({ mode, accent }: Prefs): void {
   const root = document.documentElement;
   if (mode === 'system') delete root.dataset.theme;
   else root.dataset.theme = mode;
   root.dataset.accent = accent;
 }
 
-const AppearanceContext = createContext(null);
+const AppearanceContext = createContext<AppearanceValue | null>(null);
 
-export function AppearanceProvider({ children }) {
-  const [prefs, setPrefs] = useState(readPrefs);
+export function AppearanceProvider({ children }: { children: ReactNode }) {
+  const [prefs, setPrefs] = useState<Prefs>(readPrefs);
 
   useEffect(() => {
     applyPrefs(prefs);
@@ -46,16 +60,20 @@ export function AppearanceProvider({ children }) {
     }
   }, [prefs]);
 
-  const setMode = useCallback((mode) => setPrefs((p) => ({ ...p, mode })), []);
-  const setAccent = useCallback((accent) => setPrefs((p) => ({ ...p, accent })), []);
+  const setMode = useCallback((mode: Mode) => setPrefs((p) => ({ ...p, mode })), []);
+  const setAccent = useCallback((accent: Accent) => setPrefs((p) => ({ ...p, accent })), []);
   const value = useMemo(() => ({ ...prefs, setMode, setAccent }), [prefs, setMode, setAccent]);
 
   return <AppearanceContext.Provider value={value}>{children}</AppearanceContext.Provider>;
 }
 
-export const useAppearance = () => useContext(AppearanceContext);
+export function useAppearance(): AppearanceValue {
+  const value = useContext(AppearanceContext);
+  if (!value) throw new Error('useAppearance must be used inside <AppearanceProvider>');
+  return value;
+}
 
-export function ModeToggle({ compact = false }) {
+export function ModeToggle({ compact = false }: { compact?: boolean }) {
   const { mode, setMode } = useAppearance();
   return (
     <div className={`segmented ${compact ? 'segmented-compact' : ''}`} role="group" aria-label="Colour mode">

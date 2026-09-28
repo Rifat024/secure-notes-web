@@ -1,8 +1,14 @@
-import { usePaged } from '../usePaged.js';
-import { Alert, Avatar, Empty, Pager, timeAgo } from '../ui.jsx';
+import { usePaged } from '../usePaged';
+import { Alert, Avatar, Empty, Pager, timeAgo } from '../ui';
+import type { UserPostsPage } from '../types';
 
-export function UserPostsPage({ userId, onBack }) {
-  const { data, error, page, setPage } = usePaged(`/users/${userId}/posts`, {}, 5);
+interface UserPostsPageProps {
+  userId: string;
+  onBack: () => void;
+}
+
+export function UserPostsPage({ userId, onBack }: UserPostsPageProps) {
+  const { data, error, page, setPage } = usePaged<UserPostsPage['items'][number], UserPostsPage>(`/users/${userId}/posts`, {}, 5);
   const author = data?.author;
 
   return (

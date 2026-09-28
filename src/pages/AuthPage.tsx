@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api.js';
-import { ModeToggle } from '../appearance.jsx';
-import { PASSWORD_RULES, meetsPasswordPolicy, passwordScore } from '../session.js';
-import { Alert } from '../ui.jsx';
+import { api, ApiError, errorMessage } from '../api';
+import { ModeToggle } from '../appearance';
+import { PASSWORD_RULES, meetsPasswordPolicy, passwordScore } from '../session';
+import { Alert } from '../ui';
+import type { ChangeEvent, FormEvent } from 'react';
+import type { AuthSession } from '../types';
 
 const POINTS = [
   { icon: '🛡', title: 'Private by default', text: 'Your notes are visible only to you, and every request is checked against your token.' },
@@ -10,7 +12,12 @@ const POINTS = [
   { icon: '✦', title: 'Find your people', text: 'Share posts publicly and discover members who share your interests.' },
 ];
 
-export function AuthPage({ onAuth, notice }) {
+interface AuthPageProps {
+  onAuth: (session: AuthSession) => void;
+  notice?: string;
+}
+
+export function AuthPage({ onAuth, notice }: AuthPageProps) {
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ name: '', email: '', password: '', interests: '' });
   const [error, setError] = useState('');
@@ -25,7 +32,7 @@ export function AuthPage({ onAuth, notice }) {
 
   const weakPassword = mode === 'register' && !meetsPasswordPolicy(form.password);
 
-  const set = (key) => (e) => {
+  const set = (key: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [key]: e.target.value });
     // Account lockouts are per email; an IP block is re-applied by the server on the next attempt.
     if (key === 'email' && lockedFor > 0) {
@@ -34,7 +41,7 @@ export function AuthPage({ onAuth, notice }) {
     }
   };
 
-  const submit = async (e) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     setBusy(true);
@@ -43,10 +50,10 @@ export function AuthPage({ onAuth, notice }) {
         mode === 'login'
           ? { email: form.email, password: form.password }
           : { name: form.name, email: form.email, password: form.password, interests: splitList(form.interests) };
-      onAuth(await api(`/auth/${mode}`, { method: 'POST', body }));
+      onAuth(await api<AuthSession>(`/auth/${mode}`, { method: 'POST', body }));
     } catch (err) {
-      setError(err.message);
-      if (err.status === 429) setLockedFor(err.retryAfter ?? 60);
+      setError(errorMessage(err));
+      if (err instanceof ApiError && err.status === 429) setLockedFor(err.retryAfter ?? 60);
     } finally {
       setBusy(false);
     }
@@ -152,9 +159,9 @@ export function AuthPage({ onAuth, notice }) {
   );
 }
 
-const formatWait = (seconds) => (seconds >= 60 ? `${Math.ceil(seconds / 60)} min` : `${seconds}s`);
+const formatWait = (seconds: number) => (seconds >= 60 ? `${Math.ceil(seconds / 60)} min` : `${seconds}s`);
 
-export const splitList = (value) =>
+export const splitList = (value: string): string[] =>
   value
     .split(',')
     .map((s) => s.trim())

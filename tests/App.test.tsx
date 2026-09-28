@@ -1,25 +1,29 @@
 import { describe, expect, test, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { User } from '../src/types';
 
-vi.mock('../api.js', () => ({
+vi.mock('../src/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/api')>()),
   api: vi.fn(),
   tokenStore: { get: vi.fn(), set: vi.fn(), clear: vi.fn() },
   tokenSecondsLeft: () => 3600,
   SESSION_EXPIRED_EVENT: 'secure-notes:session-expired',
 }));
 
-const { api, tokenStore } = await import('../api.js');
-const { App } = await import('../App.jsx');
-const { AppearanceProvider } = await import('../appearance.jsx');
+const apiModule = await import('../src/api');
+const api = vi.mocked(apiModule.api);
+const tokenStore = vi.mocked(apiModule.tokenStore);
+const { App } = await import('../src/App');
+const { AppearanceProvider } = await import('../src/appearance');
 
 const renderApp = () => render(<AppearanceProvider><App /></AppearanceProvider>);
 
 const emptyPage = { items: [], page: 1, limit: 9, total: 0, totalPages: 0 };
 
-function mockSession(user) {
+function mockSession(user: Pick<User, '_id' | 'name' | 'role' | 'interests'>) {
   tokenStore.get.mockReturnValue('token');
-  api.mockImplementation(async (path) => (path === '/auth/me' ? user : emptyPage));
+  api.mockImplementation(async (path: string) => (path === '/auth/me' ? user : emptyPage));
 }
 
 describe('App', () => {

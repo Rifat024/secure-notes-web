@@ -1,16 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
-import { tokenSecondsLeft } from './api.js';
+import { tokenSecondsLeft } from './api';
 
 export const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 export const IDLE_WARNING_MS = 60 * 1000;
-const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'scroll', 'touchstart'] as const;
+
+export type ExpireReason = 'idle' | 'expired' | 'revoked';
+
+interface SessionGuardOptions {
+  token: string | null;
+  onExpire: (reason: ExpireReason) => void;
+  idleMs?: number;
+  warnMs?: number;
+}
 
 /**
  * Signs the user out after a period of inactivity or when the token expires, and exposes a
  * countdown for the final minute so the user can stay signed in.
  */
-export function useSessionGuard({ token, onExpire, idleMs = IDLE_TIMEOUT_MS, warnMs = IDLE_WARNING_MS }) {
-  const [secondsLeft, setSecondsLeft] = useState(null);
+export function useSessionGuard({ token, onExpire, idleMs = IDLE_TIMEOUT_MS, warnMs = IDLE_WARNING_MS }: SessionGuardOptions) {
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const lastActivity = useRef(Date.now());
   const expireRef = useRef(onExpire);
   expireRef.current = onExpire;
@@ -30,7 +39,6 @@ export function useSessionGuard({ token, onExpire, idleMs = IDLE_TIMEOUT_MS, war
       const idleLeftMs = idleMs - (Date.now() - lastActivity.current);
       if (idleLeftMs <= 0) return expireRef.current('idle');
       setSecondsLeft(idleLeftMs <= warnMs ? Math.ceil(idleLeftMs / 1000) : null);
-      return undefined;
     };
     const interval = setInterval(tick, 1000);
 
@@ -48,16 +56,22 @@ export function useSessionGuard({ token, onExpire, idleMs = IDLE_TIMEOUT_MS, war
   return { secondsLeft, stayActive };
 }
 
-export const PASSWORD_RULES = [
+export interface PasswordRule {
+  id: string;
+  label: string;
+  test: (password: string) => boolean;
+}
+
+export const PASSWORD_RULES: readonly PasswordRule[] = [
   { id: 'length', label: 'At least 8 characters', test: (p) => p.length >= 8 },
   { id: 'letter', label: 'A letter', test: (p) => /[A-Za-z]/.test(p) },
   { id: 'number', label: 'A number', test: (p) => /\d/.test(p) },
 ];
 
-export const meetsPasswordPolicy = (password) => PASSWORD_RULES.every((rule) => rule.test(password));
+export const meetsPasswordPolicy = (password: string): boolean => PASSWORD_RULES.every((rule) => rule.test(password));
 
 /** 0–4 strength score used for the meter; the policy only requires the three rules above. */
-export function passwordScore(password) {
+export function passwordScore(password: string): number {
   if (!password) return 0;
   let score = PASSWORD_RULES.filter((rule) => rule.test(password)).length;
   if (score === 3 && password.length >= 12 && /[^A-Za-z0-9]/.test(password) && /[a-z]/.test(password) && /[A-Z]/.test(password)) score = 4;

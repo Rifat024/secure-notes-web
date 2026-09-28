@@ -1,26 +1,35 @@
 import { useState } from 'react';
-import { api } from '../api.js';
-import { usePaged } from '../usePaged.js';
-import { Alert, Avatar, PageHeader, Pager, RoleBadge } from '../ui.jsx';
-import { splitList } from './AuthPage.jsx';
+import { api, errorMessage } from '../api';
+import { usePaged } from '../usePaged';
+import { Alert, Avatar, PageHeader, Pager, RoleBadge } from '../ui';
+import { splitList } from './AuthPage';
+import type { ChangeEvent, FormEvent } from 'react';
+import type { User } from '../types';
 
 const EMPTY = { name: '', email: '', password: '', role: 'user', interests: '' };
 
-export function AdminUsersPage({ currentUser, onOpenUser }) {
-  const { data, error, page, setPage, reload } = usePaged('/admin/users');
-  const [form, setForm] = useState(EMPTY);
-  const [editingId, setEditingId] = useState(null);
+interface AdminUsersPageProps {
+  currentUser: User;
+  onOpenUser: (id: string) => void;
+}
+
+type UserForm = typeof EMPTY;
+
+export function AdminUsersPage({ currentUser, onOpenUser }: AdminUsersPageProps) {
+  const { data, error, page, setPage, reload } = usePaged<User>('/admin/users');
+  const [form, setForm] = useState<UserForm>(EMPTY);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState('');
 
-  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+  const set = (key: keyof UserForm) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [key]: e.target.value });
 
-  const run = async (fn) => {
+  const run = async (fn: () => Promise<unknown>) => {
     setActionError('');
     try {
       await fn();
       await reload();
     } catch (err) {
-      setActionError(err.message);
+      setActionError(errorMessage(err));
     }
   };
 
@@ -29,10 +38,15 @@ export function AdminUsersPage({ currentUser, onOpenUser }) {
     setEditingId(null);
   };
 
-  const submit = (e) => {
+  const submit = (e: FormEvent) => {
     e.preventDefault();
     run(async () => {
-      const body = { name: form.name, email: form.email, role: form.role, interests: splitList(form.interests) };
+      const body: { name: string; email: string; role: string; interests: string[]; password?: string } = {
+        name: form.name,
+        email: form.email,
+        role: form.role,
+        interests: splitList(form.interests),
+      };
       if (form.password) body.password = form.password;
       if (editingId) await api(`/admin/users/${editingId}`, { method: 'PATCH', body });
       else await api('/admin/users', { method: 'POST', body });
@@ -40,12 +54,12 @@ export function AdminUsersPage({ currentUser, onOpenUser }) {
     });
   };
 
-  const startEdit = (u) => {
+  const startEdit = (u: User) => {
     setEditingId(u._id);
     setForm({ name: u.name, email: u.email, password: '', role: u.role, interests: u.interests.join(', ') });
   };
 
-  const remove = (u) => {
+  const remove = (u: User) => {
     if (window.confirm(`Delete ${u.email} and all of their notes and posts?`)) {
       run(() => api(`/admin/users/${u._id}`, { method: 'DELETE' }));
     }

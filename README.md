@@ -1,6 +1,6 @@
 # Secure Notes Web
 
-React frontend for [secure-notes-api](https://github.com/Rifat024/secure-notes-api), built with Vite and hand-written CSS: no UI kit, component library or template. It has a dark and light theme (it follows the system setting), a sidebar layout and responsive pages that work down to phone width.
+React frontend for [secure-notes-api](https://github.com/Rifat024/secure-notes-api), written in TypeScript (strict mode, type-checked with TypeScript 7), built with Vite and hand-written CSS: no UI kit, component library or template. It has a dark and light theme (it follows the system setting), a sidebar layout and responsive pages that work down to phone width.
 
 ## Features
 
@@ -18,7 +18,8 @@ Every list uses the API's `page`/`limit` pagination.
 ```bash
 cp .env.example .env    # VITE_API_URL=http://localhost:4000
 npm install
-npm test                # 32 Vitest + Testing Library unit tests
+npm test                # 54 Vitest + Testing Library tests (in tests/)
+npm run typecheck       # strict TypeScript check
 npm run dev             # http://localhost:5173
 ```
 

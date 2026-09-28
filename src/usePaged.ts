@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from './api.js';
+import { api, errorMessage } from './api';
+import type { Page } from './types';
 
-export function usePaged(path, extraQuery = {}, limit = 10) {
+type ExtraQuery = Record<string, string | number | undefined>;
+
+/** Loads one page of a paginated endpoint and refetches when the page or filters change. */
+export function usePaged<T, R extends Page<T> = Page<T>>(path: string, extraQuery: ExtraQuery = {}, limit = 10) {
   const [page, setPage] = useState(1);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<R | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const queryKey = JSON.stringify(extraQuery);
@@ -11,9 +15,9 @@ export function usePaged(path, extraQuery = {}, limit = 10) {
   const reload = useCallback(async () => {
     setError('');
     try {
-      setData(await api(path, { query: { page, limit, ...JSON.parse(queryKey) } }));
+      setData(await api<R>(path, { query: { page, limit, ...(JSON.parse(queryKey) as ExtraQuery) } }));
     } catch (err) {
-      setError(err.message);
+      setError(errorMessage(err));
     } finally {
       setLoading(false);
     }

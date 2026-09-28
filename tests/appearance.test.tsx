@@ -1,7 +1,7 @@
 import { describe, expect, test, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AppearanceProvider, ModeToggle, AccentPicker } from '../appearance.jsx';
+import { AppearanceProvider, ModeToggle, AccentPicker } from '../src/appearance';
 
 const renderControls = () =>
   render(

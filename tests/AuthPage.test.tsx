@@ -1,15 +1,16 @@
 import { describe, expect, test, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ComponentProps } from 'react';
 
-vi.mock('../api.js', () => ({ api: vi.fn() }));
+vi.mock('../src/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('../src/api')>()), api: vi.fn() }));
 
-const { api } = await import('../api.js');
-const { AuthPage: Page } = await import('../pages/AuthPage.jsx');
-const { AppearanceProvider } = await import('../appearance.jsx');
-const { ApiError } = await vi.importActual('../api.js');
+const api = vi.mocked((await import('../src/api')).api);
+const { AuthPage: Page } = await import('../src/pages/AuthPage');
+const { AppearanceProvider } = await import('../src/appearance');
+const { ApiError } = await vi.importActual<typeof import('../src/api')>('../src/api');
 
-const AuthPage = (props) => (
+const AuthPage = (props: ComponentProps<typeof Page>) => (
   <AppearanceProvider>
     <Page {...props} />
   </AppearanceProvider>

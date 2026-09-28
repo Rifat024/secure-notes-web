@@ -1,24 +1,31 @@
 import { useState } from 'react';
-import { api } from '../api.js';
-import { usePaged } from '../usePaged.js';
-import { Alert, Avatar, Empty, PageHeader, Pager, timeAgo } from '../ui.jsx';
+import { api, errorMessage } from '../api';
+import { usePaged } from '../usePaged';
+import { Alert, Avatar, Empty, PageHeader, Pager, timeAgo } from '../ui';
+import type { FormEvent } from 'react';
+import type { Post, User } from '../types';
 
-export function PostsPage({ currentUser, onOpenUser }) {
-  const { data, error, page, setPage, reload } = usePaged('/posts');
+interface PostsPageProps {
+  currentUser: User;
+  onOpenUser: (id: string) => void;
+}
+
+export function PostsPage({ currentUser, onOpenUser }: PostsPageProps) {
+  const { data, error, page, setPage, reload } = usePaged<Post>('/posts');
   const [form, setForm] = useState({ title: '', body: '' });
   const [actionError, setActionError] = useState('');
 
-  const run = async (fn) => {
+  const run = async (fn: () => Promise<unknown>) => {
     setActionError('');
     try {
       await fn();
       await reload();
     } catch (err) {
-      setActionError(err.message);
+      setActionError(errorMessage(err));
     }
   };
 
-  const submit = (e) => {
+  const submit = (e: FormEvent) => {
     e.preventDefault();
     run(async () => {
       await api('/posts', { method: 'POST', body: form });
@@ -26,7 +33,7 @@ export function PostsPage({ currentUser, onOpenUser }) {
     });
   };
 
-  const canDelete = (post) => currentUser.role === 'admin' || post.author?._id === currentUser._id;
+  const canDelete = (post: Post) => currentUser.role === 'admin' || post.author?._id === currentUser._id;
 
   return (
     <div className="page">
@@ -60,21 +67,21 @@ export function PostsPage({ currentUser, onOpenUser }) {
       )}
 
       <div className="stack">
-        {data?.items.map((post) => (
+        {data?.items.map(({ author, ...post }) => (
           <article key={post._id} className="card post">
-            <Avatar name={post.author?.name ?? '?'} seed={post.author?._id} />
+            <Avatar name={author?.name ?? '?'} seed={author?._id} />
             <div className="post-content">
               <div className="post-head">
-                {post.author ? (
-                  <button className="link" onClick={() => onOpenUser(post.author._id)}>
-                    {post.author.name}
+                {author ? (
+                  <button className="link" onClick={() => onOpenUser(author._id)}>
+                    {author.name}
                   </button>
                 ) : (
                   <span className="cell-sub">deleted user</span>
                 )}
                 <span className="cell-sub">· {timeAgo(post.createdAt)}</span>
                 <span className="spacer" />
-                {canDelete(post) && (
+                {canDelete({ ...post, author }) && (
                   <button className="btn btn-sm btn-danger" onClick={() => run(() => api(`/posts/${post._id}`, { method: 'DELETE' }))}>
                     Delete
                   </button>

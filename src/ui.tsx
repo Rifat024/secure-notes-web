@@ -1,4 +1,7 @@
-const AVATAR_GRADIENTS = [
+import type { ReactNode } from 'react';
+import type { Page, Role } from './types';
+
+const AVATAR_GRADIENTS: readonly (readonly [string, string])[] = [
   ['#7c5cff', '#22d3ee'],
   ['#f472b6', '#fb923c'],
   ['#34d399', '#22d3ee'],
@@ -9,7 +12,13 @@ const AVATAR_GRADIENTS = [
 
 const hashOf = (value = '') => [...value].reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) >>> 0, 7);
 
-export function Avatar({ name = '?', seed, size }) {
+interface AvatarProps {
+  name?: string;
+  seed?: string;
+  size?: 'lg';
+}
+
+export function Avatar({ name = '?', seed, size }: AvatarProps) {
   const initials = name
     .split(' ')
     .filter(Boolean)
@@ -24,7 +33,13 @@ export function Avatar({ name = '?', seed, size }) {
   );
 }
 
-export function PageHeader({ title, subtitle, children }) {
+interface PageHeaderProps {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  children?: ReactNode;
+}
+
+export function PageHeader({ title, subtitle, children }: PageHeaderProps) {
   return (
     <header className="page-header">
       <div>
@@ -36,12 +51,23 @@ export function PageHeader({ title, subtitle, children }) {
   );
 }
 
-export function Alert({ kind = 'error', children }) {
+interface AlertProps {
+  kind?: 'error' | 'success';
+  children?: ReactNode;
+}
+
+export function Alert({ kind = 'error', children }: AlertProps) {
   if (!children) return null;
   return <div className={`alert alert-${kind}`}>{children}</div>;
 }
 
-export function Empty({ icon = '✨', title, children }) {
+interface EmptyProps {
+  icon?: string;
+  title: ReactNode;
+  children?: ReactNode;
+}
+
+export function Empty({ icon = '✨', title, children }: EmptyProps) {
   return (
     <div className="empty">
       <div className="empty-icon">{icon}</div>
@@ -51,7 +77,7 @@ export function Empty({ icon = '✨', title, children }) {
   );
 }
 
-export function Skeletons({ count = 3 }) {
+export function Skeletons({ count = 3 }: { count?: number }) {
   return (
     <div className="grid-cards">
       {Array.from({ length: count }, (_, i) => (
@@ -61,11 +87,17 @@ export function Skeletons({ count = 3 }) {
   );
 }
 
-export function RoleBadge({ role }) {
+export function RoleBadge({ role }: { role: Role }) {
   return <span className={`badge ${role === 'admin' ? 'badge-admin' : ''}`}>{role === 'admin' ? '★ admin' : 'user'}</span>;
 }
 
-export function Pager({ data, page, setPage }) {
+interface PagerProps {
+  data: Pick<Page<unknown>, 'page' | 'limit' | 'total' | 'totalPages'> | null;
+  page: number;
+  setPage: (page: number) => void;
+}
+
+export function Pager({ data, page, setPage }: PagerProps) {
   if (!data || data.total === 0) return null;
   const totalPages = Math.max(1, data.totalPages);
   const start = Math.max(1, Math.min(page - 2, totalPages - 4));
@@ -96,7 +128,7 @@ export function Pager({ data, page, setPage }) {
 }
 
 const relative = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-const UNITS = [
+const UNITS: readonly (readonly [Intl.RelativeTimeFormatUnit, number])[] = [
   ['year', 31536000],
   ['month', 2592000],
   ['day', 86400],
@@ -104,7 +136,7 @@ const UNITS = [
   ['minute', 60],
 ];
 
-export function timeAgo(date) {
+export function timeAgo(date: string | number | Date): string {
   const seconds = (new Date(date).getTime() - Date.now()) / 1000;
   for (const [unit, size] of UNITS) {
     if (Math.abs(seconds) >= size) return relative.format(Math.round(seconds / size), unit);

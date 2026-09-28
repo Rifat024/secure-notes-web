@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { usePaged } from '../usePaged.js';
-import { Alert, Avatar, Empty, PageHeader, Pager, timeAgo } from '../ui.jsx';
+import { usePaged } from '../usePaged';
+import { Alert, Avatar, Empty, PageHeader, Pager, timeAgo } from '../ui';
+import type { AdminNote, UserSummary } from '../types';
 
 export function AdminNotesPage() {
-  const [owner, setOwner] = useState(null);
-  const { data, error, page, setPage } = usePaged('/admin/notes', { owner: owner?._id });
+  const [owner, setOwner] = useState<UserSummary | null>(null);
+  const { data, error, page, setPage } = usePaged<AdminNote>('/admin/notes', { owner: owner?._id });
 
   return (
     <div className="page">

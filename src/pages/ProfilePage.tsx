@@ -1,15 +1,24 @@
 import { useState } from 'react';
-import { api } from '../api.js';
-import { AccentPicker, ModeToggle } from '../appearance.jsx';
-import { meetsPasswordPolicy } from '../session.js';
-import { Alert, Avatar, PageHeader, RoleBadge } from '../ui.jsx';
-import { splitList } from './AuthPage.jsx';
+import { api, errorMessage } from '../api';
+import { AccentPicker, ModeToggle } from '../appearance';
+import { meetsPasswordPolicy } from '../session';
+import { Alert, Avatar, PageHeader, RoleBadge } from '../ui';
+import { splitList } from './AuthPage';
+import type { FormEvent } from 'react';
+import type { User } from '../types';
 
-export function ProfilePage({ user, onUpdated, onTokenRefreshed, onSignOutEverywhere }) {
+interface ProfilePageProps {
+  user: User;
+  onUpdated: (user: User) => void;
+  onTokenRefreshed: (token: string) => void;
+  onSignOutEverywhere: () => void;
+}
+
+export function ProfilePage({ user, onUpdated, onTokenRefreshed, onSignOutEverywhere }: ProfilePageProps) {
   const [form, setForm] = useState({ name: user.name, interests: user.interests.join(', '), password: '' });
-  const [message, setMessage] = useState({ kind: 'success', text: '' });
+  const [message, setMessage] = useState<{ kind: 'success' | 'error'; text: string }>({ kind: 'success', text: '' });
 
-  const submit = async (e) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setMessage({ kind: 'success', text: '' });
     if (form.password && !meetsPasswordPolicy(form.password)) {
@@ -17,15 +26,15 @@ export function ProfilePage({ user, onUpdated, onTokenRefreshed, onSignOutEveryw
       return;
     }
     try {
-      const body = { name: form.name, interests: splitList(form.interests) };
+      const body: { name: string; interests: string[]; password?: string } = { name: form.name, interests: splitList(form.interests) };
       if (form.password) body.password = form.password;
-      const res = await api('/auth/me', { method: 'PATCH', body });
+      const res = await api<{ user: User; token?: string }>('/auth/me', { method: 'PATCH', body });
       if (res.token) onTokenRefreshed(res.token);
       onUpdated(res.user);
       setForm({ ...form, password: '' });
       setMessage({ kind: 'success', text: res.token ? 'Saved. Other devices have been signed out.' : 'Profile saved.' });
     } catch (err) {
-      setMessage({ kind: 'error', text: err.message });
+      setMessage({ kind: 'error', text: errorMessage(err) });
     }
   };
 

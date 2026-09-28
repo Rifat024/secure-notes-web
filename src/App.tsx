@@ -1,52 +1,63 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, tokenStore, SESSION_EXPIRED_EVENT } from './api.js';
-import { ModeToggle } from './appearance.jsx';
-import { useSessionGuard } from './session.js';
-import { Avatar, RoleBadge } from './ui.jsx';
-import { AuthPage } from './pages/AuthPage.jsx';
-import { NotesPage } from './pages/NotesPage.jsx';
-import { PostsPage } from './pages/PostsPage.jsx';
-import { UserPostsPage } from './pages/UserPostsPage.jsx';
-import { InterestsPage } from './pages/InterestsPage.jsx';
-import { ProfilePage } from './pages/ProfilePage.jsx';
-import { AdminUsersPage } from './pages/AdminUsersPage.jsx';
-import { AdminNotesPage } from './pages/AdminNotesPage.jsx';
+import { api, tokenStore, SESSION_EXPIRED_EVENT } from './api';
+import type { AuthSession, User } from './types';
+import type { ExpireReason } from './session';
+import { ModeToggle } from './appearance';
+import { useSessionGuard } from './session';
+import { Avatar, RoleBadge } from './ui';
+import { AuthPage } from './pages/AuthPage';
+import { NotesPage } from './pages/NotesPage';
+import { PostsPage } from './pages/PostsPage';
+import { UserPostsPage } from './pages/UserPostsPage';
+import { InterestsPage } from './pages/InterestsPage';
+import { ProfilePage } from './pages/ProfilePage';
+import { AdminUsersPage } from './pages/AdminUsersPage';
+import { AdminNotesPage } from './pages/AdminNotesPage';
 
-const WORKSPACE = [
+type SectionName = 'notes' | 'posts' | 'interests' | 'profile' | 'adminUsers' | 'adminNotes';
+type View = { name: SectionName } | { name: 'userPosts'; id: string };
+
+interface NavItem {
+  name: SectionName;
+  label: string;
+  icon: string;
+}
+
+const WORKSPACE: NavItem[] = [
   { name: 'notes', label: 'My notes', icon: '✎' },
   { name: 'posts', label: 'Community posts', icon: '◈' },
   { name: 'interests', label: 'Interests', icon: '✦' },
   { name: 'profile', label: 'Profile', icon: '◉' },
 ];
 
-const ADMIN = [
+const ADMIN: NavItem[] = [
   { name: 'adminUsers', label: 'Users', icon: '⚑' },
   { name: 'adminNotes', label: 'All notes', icon: '▤' },
 ];
 
-const SIGN_OUT_NOTICES = {
+const SIGN_OUT_NOTICES: Record<ExpireReason, string> = {
   idle: 'You were signed out after 30 minutes of inactivity.',
   expired: 'Your session expired. Please sign in again.',
   revoked: 'Your session ended. Please sign in again.',
 };
 
 export function App() {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(() => tokenStore.get());
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(() => tokenStore.get());
   const [loading, setLoading] = useState(Boolean(tokenStore.get()));
-  const [view, setView] = useState({ name: 'notes' });
+  const [view, setView] = useState<View>({ name: 'notes' });
   const [notice, setNotice] = useState('');
 
-  const endSession = useCallback((reason) => {
+  const endSession = useCallback((reason?: ExpireReason) => {
     tokenStore.clear();
     setToken(null);
     setUser(null);
-    setNotice(SIGN_OUT_NOTICES[reason] ?? '');
+    setNotice(reason ? SIGN_OUT_NOTICES[reason] : '');
   }, []);
 
   useEffect(() => {
     if (!tokenStore.get()) return;
-    api('/auth/me')
+    api<User>('/auth/me')
       .then(setUser)
       .catch(() => tokenStore.clear())
       .finally(() => setLoading(false));
@@ -60,7 +71,7 @@ export function App() {
 
   const { secondsLeft, stayActive } = useSessionGuard({ token: user ? token : null, onExpire: endSession });
 
-  const onAuth = ({ token: issued, user: authed }) => {
+  const onAuth = ({ token: issued, user: authed }: AuthSession) => {
     tokenStore.set(issued);
     setToken(issued);
     setUser(authed);
@@ -68,7 +79,7 @@ export function App() {
     setView({ name: 'notes' });
   };
 
-  const onTokenRefreshed = (issued) => {
+  const onTokenRefreshed = (issued: string) => {
     tokenStore.set(issued);
     setToken(issued);
   };
@@ -92,9 +103,9 @@ export function App() {
   if (!user) return <AuthPage onAuth={onAuth} notice={notice} />;
 
   const isAdmin = user.role === 'admin';
-  const openUserPosts = (id) => setView({ name: 'userPosts', id });
+  const openUserPosts = (id: string) => setView({ name: 'userPosts', id });
 
-  const navButton = (item) => (
+  const navButton = (item: NavItem) => (
     <button
       key={item.name}
       className={`nav-item ${view.name === item.name ? 'active' : ''}`}

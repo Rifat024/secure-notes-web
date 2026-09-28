@@ -1,23 +1,25 @@
 import { useState } from 'react';
-import { api } from '../api.js';
-import { usePaged } from '../usePaged.js';
-import { Alert, Empty, PageHeader, Pager, Skeletons, timeAgo } from '../ui.jsx';
+import { api, errorMessage } from '../api';
+import { usePaged } from '../usePaged';
+import { Alert, Empty, PageHeader, Pager, Skeletons, timeAgo } from '../ui';
+import type { FormEvent } from 'react';
+import type { Note } from '../types';
 
 const EMPTY = { title: '', content: '' };
 
 export function NotesPage() {
-  const { data, error, loading, page, setPage, reload } = usePaged('/notes', {}, 9);
+  const { data, error, loading, page, setPage, reload } = usePaged<Note>('/notes', {}, 9);
   const [form, setForm] = useState(EMPTY);
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState('');
 
-  const run = async (fn) => {
+  const run = async (fn: () => Promise<unknown>) => {
     setActionError('');
     try {
       await fn();
       await reload();
     } catch (err) {
-      setActionError(err.message);
+      setActionError(errorMessage(err));
     }
   };
 
@@ -26,7 +28,7 @@ export function NotesPage() {
     setEditingId(null);
   };
 
-  const submit = (e) => {
+  const submit = (e: FormEvent) => {
     e.preventDefault();
     run(async () => {
       if (editingId) await api(`/notes/${editingId}`, { method: 'PATCH', body: form });
@@ -35,13 +37,13 @@ export function NotesPage() {
     });
   };
 
-  const startEdit = (note) => {
+  const startEdit = (note: Note) => {
     setEditingId(note._id);
     setForm({ title: note.title, content: note.content });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const remove = (id) => {
+  const remove = (id: string) => {
     if (window.confirm('Delete this note? This cannot be undone.')) run(() => api(`/notes/${id}`, { method: 'DELETE' }));
   };
 

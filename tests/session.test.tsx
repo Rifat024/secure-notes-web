@@ -1,8 +1,8 @@
 import { describe, expect, test, vi, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { meetsPasswordPolicy, passwordScore, useSessionGuard } from '../session.js';
+import { meetsPasswordPolicy, passwordScore, useSessionGuard } from '../src/session';
 
-const tokenExpiringIn = (seconds) => `h.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + seconds }))}.s`;
+const tokenExpiringIn = (seconds: number) => `h.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + seconds }))}.s`;
 
 describe('password policy', () => {
   test.each([

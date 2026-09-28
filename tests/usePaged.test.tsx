@@ -1,10 +1,10 @@
 import { describe, expect, test, vi } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 
-vi.mock('../api.js', () => ({ api: vi.fn() }));
+vi.mock('../src/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('../src/api')>()), api: vi.fn() }));
 
-const { api } = await import('../api.js');
-const { usePaged } = await import('../usePaged.js');
+const api = vi.mocked((await import('../src/api')).api);
+const { usePaged } = await import('../src/usePaged');
 
 describe('usePaged', () => {
   test('loads the first page with the given limit and extra query', async () => {

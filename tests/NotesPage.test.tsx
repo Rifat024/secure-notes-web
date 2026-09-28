@@ -2,17 +2,17 @@ import { describe, expect, test, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-vi.mock('../api.js', () => ({ api: vi.fn() }));
+vi.mock('../src/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('../src/api')>()), api: vi.fn() }));
 
-const { api } = await import('../api.js');
-const { NotesPage } = await import('../pages/NotesPage.jsx');
+const api = vi.mocked((await import('../src/api')).api);
+const { NotesPage } = await import('../src/pages/NotesPage');
 
 const note = { _id: 'n1', title: 'Groceries', content: 'milk', updatedAt: new Date().toISOString() };
-const page = (items) => ({ items, page: 1, limit: 9, total: items.length, totalPages: items.length ? 1 : 0 });
+const page = (items: unknown[]) => ({ items, page: 1, limit: 9, total: items.length, totalPages: items.length ? 1 : 0 });
 
 describe('NotesPage', () => {
   beforeEach(() => {
-    api.mockImplementation(async (path, opts = {}) => (opts.method ? {} : page([note])));
+    api.mockImplementation(async (_path, opts = {}) => (opts.method ? {} : page([note])));
   });
 
   test('lists the user notes', async () => {

@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { usePaged } from '../usePaged.js';
-import { Alert, Avatar, Empty, PageHeader, Pager, Skeletons } from '../ui.jsx';
+import { usePaged } from '../usePaged';
+import { Alert, Avatar, Empty, PageHeader, Pager, Skeletons } from '../ui';
+import type { InterestGroup } from '../types';
 
-export function InterestsPage({ onOpenUser }) {
+export function InterestsPage({ onOpenUser }: { onOpenUser: (id: string) => void }) {
   const [draft, setDraft] = useState('');
   const [interest, setInterest] = useState('');
-  const { data, error, loading, page, setPage } = usePaged('/users/interests', { interest }, 6);
+  const { data, error, loading, page, setPage } = usePaged<InterestGroup>('/users/interests', { interest }, 6);
   const max = Math.max(1, ...(data?.items.map((g) => g.count) ?? [1]));
 
   return (
