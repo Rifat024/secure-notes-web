@@ -63,11 +63,11 @@ export function AuthPage({ onAuth }) {
 
       <section className="auth-panel">
         <div className="card auth-card">
-          <div className="tabs">
-            <button className={`tab ${mode === 'login' ? 'active' : ''}`} onClick={() => setMode('login')}>
+          <div className="tabs" role="tablist">
+            <button type="button" role="tab" aria-selected={mode === 'login'} className={`tab ${mode === 'login' ? 'active' : ''}`} onClick={() => setMode('login')}>
               Log in
             </button>
-            <button className={`tab ${mode === 'register' ? 'active' : ''}`} onClick={() => setMode('register')}>
+            <button type="button" role="tab" aria-selected={mode === 'register'} className={`tab ${mode === 'register' ? 'active' : ''}`} onClick={() => setMode('register')}>
               Create account
             </button>
           </div>
