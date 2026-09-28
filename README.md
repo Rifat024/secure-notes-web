@@ -18,6 +18,7 @@ Every list uses the API's `page`/`limit` pagination.
 ```bash
 cp .env.example .env    # VITE_API_URL=http://localhost:4000
 npm install
+npm test                # 32 Vitest + Testing Library unit tests
 npm run dev             # http://localhost:5173
 ```
 
