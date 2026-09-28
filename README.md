@@ -1,6 +1,6 @@
 # Secure Notes Web
 
-A minimal React frontend for [secure-notes-api](https://github.com/Rifat024/secure-notes-api). It aims to be functional, not polished, since the task grades the backend. I wrote it by hand with Vite and React, without a UI kit or template.
+React frontend for [secure-notes-api](https://github.com/Rifat024/secure-notes-api), built with Vite and hand-written CSS: no UI kit, component library or template. It has a dark and light theme (it follows the system setting), a sidebar layout and responsive pages that work down to phone width.
 
 ## Features
 

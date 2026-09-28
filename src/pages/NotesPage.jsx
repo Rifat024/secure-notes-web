@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { api } from '../api.js';
 import { usePaged } from '../usePaged.js';
-import { Pager } from '../Pager.jsx';
+import { Alert, Empty, PageHeader, Pager, Skeletons, timeAgo } from '../ui.jsx';
 
 const EMPTY = { title: '', content: '' };
 
 export function NotesPage() {
-  const { data, error, page, setPage, reload } = usePaged('/notes');
+  const { data, error, loading, page, setPage, reload } = usePaged('/notes', {}, 9);
   const [form, setForm] = useState(EMPTY);
   const [editingId, setEditingId] = useState(null);
   const [actionError, setActionError] = useState('');
@@ -21,60 +21,83 @@ export function NotesPage() {
     }
   };
 
+  const reset = () => {
+    setForm(EMPTY);
+    setEditingId(null);
+  };
+
   const submit = (e) => {
     e.preventDefault();
     run(async () => {
       if (editingId) await api(`/notes/${editingId}`, { method: 'PATCH', body: form });
       else await api('/notes', { method: 'POST', body: form });
-      setForm(EMPTY);
-      setEditingId(null);
+      reset();
     });
   };
 
   const startEdit = (note) => {
     setEditingId(note._id);
     setForm({ title: note.title, content: note.content });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const remove = (id) => {
-    if (window.confirm('Delete this note?')) run(() => api(`/notes/${id}`, { method: 'DELETE' }));
+    if (window.confirm('Delete this note? This cannot be undone.')) run(() => api(`/notes/${id}`, { method: 'DELETE' }));
   };
 
   return (
-    <section>
-      <h2>My notes</h2>
-      <form onSubmit={submit}>
-        <input placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-        <textarea placeholder="Content" rows={4} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
-        <div className="row">
-          <button type="submit">{editingId ? 'Save changes' : 'Add note'}</button>
+    <div className="page">
+      <PageHeader title="My notes" subtitle={data ? `${data.total} private note${data.total === 1 ? '' : 's'}, visible only to you` : 'Loading…'} />
+
+      <form className="card stack" onSubmit={submit}>
+        <div className="card-title" style={{ marginBottom: 0 }}>
+          {editingId ? 'Edit note' : 'New note'}
+          {editingId && <span className="badge badge-accent">editing</span>}
+        </div>
+        <input className="input" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+        <textarea className="textarea" placeholder="Write something…" value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
+        <div className="row row-end">
           {editingId && (
-            <button type="button" onClick={() => { setEditingId(null); setForm(EMPTY); }}>
+            <button type="button" className="btn btn-ghost" onClick={reset}>
               Cancel
             </button>
           )}
+          <button type="submit" className="btn btn-primary">
+            {editingId ? 'Save changes' : '+ Add note'}
+          </button>
         </div>
       </form>
-      {(error || actionError) && <p className="error">{error || actionError}</p>}
-      <table>
-        <thead>
-          <tr><th>Title</th><th>Content</th><th>Updated</th><th /></tr>
-        </thead>
-        <tbody>
+
+      <Alert>{error || actionError}</Alert>
+
+      {loading && !data ? (
+        <Skeletons count={6} />
+      ) : data?.items.length === 0 ? (
+        <div className="card">
+          <Empty icon="✎" title="No notes yet">Your first note is one click away.</Empty>
+        </div>
+      ) : (
+        <div className="grid-cards">
           {data?.items.map((note) => (
-            <tr key={note._id}>
-              <td>{note.title}</td>
-              <td style={{ whiteSpace: 'pre-wrap' }}>{note.content}</td>
-              <td>{new Date(note.updatedAt).toLocaleString()}</td>
-              <td>
-                <button onClick={() => startEdit(note)}>Edit</button>{' '}
-                <button onClick={() => remove(note._id)}>Delete</button>
-              </td>
-            </tr>
+            <article key={note._id} className={`card note-card ${editingId === note._id ? 'editing' : ''}`}>
+              <h3>{note.title}</h3>
+              <p className="note-body">{note.content || <em>No content</em>}</p>
+              <div className="row">
+                <span className="note-meta">Updated {timeAgo(note.updatedAt)}</span>
+                <span className="spacer" />
+                <button className="btn btn-sm btn-ghost" onClick={() => startEdit(note)}>
+                  Edit
+                </button>
+                <button className="btn btn-sm btn-danger" onClick={() => remove(note._id)}>
+                  Delete
+                </button>
+              </div>
+            </article>
           ))}
-        </tbody>
-      </table>
+        </div>
+      )}
+
       <Pager data={data} page={page} setPage={setPage} />
-    </section>
+    </div>
   );
 }

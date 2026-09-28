@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api.js';
 import { usePaged } from '../usePaged.js';
-import { Pager } from '../Pager.jsx';
+import { Alert, Avatar, PageHeader, Pager, RoleBadge } from '../ui.jsx';
 import { splitList } from './AuthPage.jsx';
 
 const EMPTY = { name: '', email: '', password: '', role: 'user', interests: '' };
@@ -24,6 +24,11 @@ export function AdminUsersPage({ currentUser, onOpenUser }) {
     }
   };
 
+  const reset = () => {
+    setForm(EMPTY);
+    setEditingId(null);
+  };
+
   const submit = (e) => {
     e.preventDefault();
     run(async () => {
@@ -31,8 +36,7 @@ export function AdminUsersPage({ currentUser, onOpenUser }) {
       if (form.password) body.password = form.password;
       if (editingId) await api(`/admin/users/${editingId}`, { method: 'PATCH', body });
       else await api('/admin/users', { method: 'POST', body });
-      setForm(EMPTY);
-      setEditingId(null);
+      reset();
     });
   };
 
@@ -48,45 +52,109 @@ export function AdminUsersPage({ currentUser, onOpenUser }) {
   };
 
   return (
-    <section>
-      <h2>Manage users</h2>
-      <form onSubmit={submit}>
-        <strong>{editingId ? 'Edit user' : 'Add user'}</strong>
-        <input placeholder="Name" value={form.name} onChange={set('name')} required />
-        <input type="email" placeholder="Email" value={form.email} onChange={set('email')} required />
-        <input type="password" placeholder={editingId ? 'New password (optional)' : 'Password'} value={form.password} onChange={set('password')} required={!editingId} />
-        <select value={form.role} onChange={set('role')}>
-          <option value="user">user</option>
-          <option value="admin">admin</option>
-        </select>
-        <input placeholder="Interests, comma separated" value={form.interests} onChange={set('interests')} />
-        <div className="row">
-          <button type="submit">{editingId ? 'Save' : 'Create user'}</button>
-          {editingId && <button type="button" onClick={() => { setEditingId(null); setForm(EMPTY); }}>Cancel</button>}
+    <div className="page">
+      <PageHeader title="Users" subtitle={data ? `${data.total} registered members` : 'Loading…'} />
+
+      <div className="split">
+        <form className="card stack" onSubmit={submit}>
+          <div className="card-title">
+            {editingId ? 'Edit user' : 'Add user'}
+            {editingId && <span className="badge badge-accent">editing</span>}
+          </div>
+          <label className="field">
+            <span>Name</span>
+            <input className="input" value={form.name} onChange={set('name')} required />
+          </label>
+          <label className="field">
+            <span>Email</span>
+            <input className="input" type="email" value={form.email} onChange={set('email')} required />
+          </label>
+          <label className="field">
+            <span>{editingId ? 'New password (optional)' : 'Password'}</span>
+            <input className="input" type="password" value={form.password} onChange={set('password')} required={!editingId} />
+          </label>
+          <label className="field">
+            <span>Role</span>
+            <select className="select" value={form.role} onChange={set('role')}>
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Interests</span>
+            <input className="input" placeholder="chess, reading" value={form.interests} onChange={set('interests')} />
+          </label>
+          <div className="row row-end">
+            {editingId && (
+              <button type="button" className="btn btn-ghost" onClick={reset}>
+                Cancel
+              </button>
+            )}
+            <button type="submit" className="btn btn-primary">
+              {editingId ? 'Save' : '+ Create user'}
+            </button>
+          </div>
+        </form>
+
+        <div className="card stack">
+          <Alert>{error || actionError}</Alert>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Role</th>
+                  <th>Interests</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {data?.items.map((u) => (
+                  <tr key={u._id}>
+                    <td>
+                      <div className="cell-user">
+                        <Avatar name={u.name} seed={u._id} />
+                        <div>
+                          <div>{u.name}</div>
+                          <div className="cell-sub">{u.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <RoleBadge role={u.role} />
+                    </td>
+                    <td>
+                      <div className="row" style={{ gap: 4 }}>
+                        {u.interests.map((interest) => (
+                          <span key={interest} className="tag">
+                            {interest}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="row" style={{ gap: 4, flexWrap: 'nowrap', justifyContent: 'flex-end' }}>
+                        <button className="btn btn-sm btn-ghost" onClick={() => startEdit(u)}>
+                          Edit
+                        </button>
+                        <button className="btn btn-sm btn-ghost" onClick={() => onOpenUser(u._id)}>
+                          Posts
+                        </button>
+                        {u._id !== currentUser._id && (
+                          <button className="btn btn-sm btn-danger" onClick={() => remove(u)}>
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pager data={data} page={page} setPage={setPage} />
         </div>
-      </form>
-      {(error || actionError) && <p className="error">{error || actionError}</p>}
-      <table>
-        <thead>
-          <tr><th>Name</th><th>Email</th><th>Role</th><th>Interests</th><th /></tr>
-        </thead>
-        <tbody>
-          {data?.items.map((u) => (
-            <tr key={u._id}>
-              <td>{u.name}</td>
-              <td>{u.email}</td>
-              <td>{u.role}</td>
-              <td>{u.interests.join(', ')}</td>
-              <td>
-                <button onClick={() => startEdit(u)}>Edit</button>{' '}
-                <button onClick={() => onOpenUser(u._id)}>Posts</button>{' '}
-                {u._id !== currentUser._id && <button onClick={() => remove(u)}>Delete</button>}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <Pager data={data} page={page} setPage={setPage} />
-    </section>
+      </div>
+    </div>
   );
 }
